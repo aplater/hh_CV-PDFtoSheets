@@ -14,6 +14,7 @@ function getCVfromPDF(){
       fileName = file.getName().split('.')[0];
       if (cvsDb.indexOf(fileName) == -1){
         text = convertToText(file);
+//        Logger.log(text);
       }
     }
   }
@@ -29,8 +30,8 @@ function getArrayOfNames(){
   // get all names from the range into an array and crop them to only have first and last names
   for (i=0; i<end-1; i++){
     var cvsDb = cvsDb || [];
-    var name = range.getValues()[i][0].split(' ');
-    cvsDb.push(name[0] + ' ' + name[1]); 
+    var name = range.getValues()[i][0];
+    cvsDb.push(name); 
   }
   return cvsDb;
 }
@@ -50,6 +51,6 @@ function convertToText(pdf) {
   var docFile = Drive.Files.insert(resource, fileBlob, options);
   var docDoc = DocumentApp.openById(docFile.id);
   var text = docDoc.getBody().getText();
-  Drive.files.remove(docFile.id);
+  Drive.Files.remove(docFile.id);
   return text 
 }
