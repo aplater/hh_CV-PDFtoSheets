@@ -1,6 +1,3 @@
-/**
- * Removes duplicate rows from the current sheet keeping the last duplicate intact
- */
 function removeDuplicates() {
   var sheet = SpreadsheetApp.getActiveSheet();
   var data = sheet.getDataRange().getValues();
