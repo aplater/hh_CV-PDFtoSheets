@@ -22,14 +22,7 @@ function removeDuplicates() {
 function onOpen() {
   SpreadsheetApp.getUi()
       .createMenu('hh')
-      .addItem('Импортировать новые записи', 'importCSV')
       .addItem('Удалить повторяющиеся', 'removeDuplicates')
-      .addItem('Считать pdf резюме','pdfCVread')
+      .addItem('Занести новые PDF в базу','getCVfromPDF')
       .addToUi();
-}
-
-function importCSV() {
-  var html = HtmlService.createHtmlOutputFromFile('Index');
-  SpreadsheetApp.getUi()
-      .showModalDialog(html, 'Выберите файл database.csv:');
 }
