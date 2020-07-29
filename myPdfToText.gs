@@ -1,7 +1,7 @@
 function getCVfromPDF(){
   var cvsDb = getArrayOfNames();
   // open a folder with cvs and get all the files inside
-  var folder = DriveApp.getFoldersByName('hh_stealer').next();
+  var folder = DriveApp.getFoldersByName(cvsDb[cvsDb.length-1]).next();
   var files = folder.getFiles();
   
   // go through the files and pick only the pdf ones
@@ -13,7 +13,13 @@ function getCVfromPDF(){
       var fileName = file.getName().split('.')[0];   
       if (cvsDb.indexOf(fileName) == -1 && fileName.slice(0,1) != '_'){
         var text = convertToText(file);
-        parseCV(text, file);
+        SpreadsheetApp.getActive().getSheetByName(cvsDb[cvsDb.length-1]).appendRow(parseCV(text, file));
+      }
+      if (fileName.search('(1)') != -1){
+        removeDuplicates();
+        var oldFile = DriveApp.getFoldersByName(cvsDb[cvsDb.length-1]).next().getFilesByName(fileName.replace(' (1)','')+'.pdf').next();
+        oldFile.setTrashed(true);
+        file.setName(file.getName().replace(' (1)',''))
       }
     }
   }
@@ -25,14 +31,9 @@ function getArrayOfNames(){
   var ss = SpreadsheetApp.getActiveSheet();
   var end = ss.getLastRow();
   var range = ss.getRange(ss.getName() + "!A2:A" + String(end));
-  
-  // get all names from the range into an array
-  for (var i=0; i<end-1; i++){
-    var cvsDb = cvsDb || [];
-    var name = range.getValues()[i][0];
-    cvsDb.push(name); 
-  }
-  return cvsDb;
+  range = range.getValues().join().split(',');
+  range.push(ss.getName());
+  return range;
 }
 
 
@@ -57,8 +58,7 @@ function convertToText(pdf) {
 
 function parseCV(text, file){
   text = text.split('\n')
-
-  // name
+  
   var name
   var i = 0;
   if (text[i].slice(0,6)=='Отклик'){i += 1}
@@ -71,23 +71,13 @@ function parseCV(text, file){
     file.setName('_' + file.getName());
   }
   
-  // cleaning the text from page breaks
-  for (var j=i+1;j<text.length;j++){
-    if (text[j].split(' ')[0] == name.split(' ')[0] || text[j].slice(0,8) == '• Резюме'){
-      text = text.slice(0,j).concat(text.slice(j+1))
-    }
-  }
-  
-  // link
   var link = file.getUrl();
   
-  // birth
   i += 1;
   var birth = text[i].split(' ');
   if (birth.length > 2) {birth = birth.slice(-4).join(' ')}
   else {birth = ''}
   
-  // phone and mail
   i += 1;
   var phone,  mail;
   if (text[i].search("7 ") != -1){phone = "'"+text[i].split(' ').slice(0,3).join('')}
@@ -98,74 +88,47 @@ function parseCV(text, file){
   }
   else {mail = ''}
   
-  // trips
   i += 1;
+  var city = text[i].split(' ');
+  if (city[0] == 'Проживает:'){
+    city = city.slice(1,city.indexOf('Гражданство:')).join(' ')
+  }
+  else {city = ''}
+  
   var trips = text[i].toLowerCase().indexOf('готов');
   if (text[i].slice(trips-3,trips-1) == 'Не') {trips = text[i].slice(trips-3)}
   else {trips = text[i].slice(trips)}
   
-  // driving license
-  i += 1;
-  var drivingLicense;
-  for (var j=i;j<text.length;j++){
-    if (text[j].slice(0,5) == 'Права'){
-      drivingLicense = text[j];
-      break;
+  text = text.slice(i+1)
+  
+  // cleaning the text from page breaks
+  for (var j=i+1;j<text.length;j++){
+    if (text[j].split(' ')[0] == name.split(' ')[0] || text[j].slice(0,8) == '• Резюме'){
+      text = text.slice(0,j).concat(text.slice(j+1))
     }
-    else {drivingLicense=''}
   }
   
-  // income
-  var income;
-  for (var j=i;j<text.length;j++){
-    if (text[j].slice(-5,-2)=='руб' && text[j].length < 15){
-      income = text[j]; 
-      break
-    }
-    else {income = ''}
+  var drivingLicense, income, jobName, experience, education, comment;
+  
+  for (var j=0;j<text.length;j++){
+    if (text[j].slice(0,5) == 'Права'){drivingLicense = text[j]}
+    if (text[j].slice(-5,-2) == 'руб' && text[j].length < 15){income = text[j]}
+    if (text[j].slice(0,8) == 'Желаемая'){jobName = text[j+1]}
+    if (text[j].slice(0,13) == 'Опыт работы —'){var expStart = j}
+    if (text[j].slice(0,12) == 'Образование '){var eduStart = j}
+    if (text[j].slice(0,16) == 'Ключевые навыки '){var eduEnd = j}
+    if (text[j].slice(0,20) == 'Комментарии к резюме'){var commStart = j}
+    if (text[j].slice(0,28) == 'История общения с кандидатом'){var commEnd = j}
   }
   
-  // job name
-  var jobName;
-  for (var j=i;j<text.length;j++){
-    if (text[j].slice(0,8)=='Желаемая'){jobName = text[j+1]; break}
-    else {jobName = ''}
-  }
+  if (expStart && eduStart){experience = text.slice(expStart, eduStart).join('\n')}
+  if (eduStart && eduEnd){education = text.slice(eduStart + 1, eduEnd).join('\n')}
+  if (commStart && commEnd){comment = text.slice(commStart + 1, commEnd).join('\n')}
   
-  // experience
-  var experience;
-  for (var j=i;j<text.length;j++){
-    if (text[j].slice(0,13) == 'Опыт работы —'){var start1 = j}
-    if (text[j].slice(0,12) == 'Образование '){var end1 = j}
-  }
-  if (start1 && end1){
-    experience = text.slice(start1, end1).join('\n');
-  }
-  else {experience = "Нет опыта"}
+  if (!experience){experience=''}
+  if(!comment){comment=''}
+  if(!drivingLicense){drivingLicense=''}
+  if(!income){income=''}
   
-  // education
-  var education;
-  for (var j=i;j<text.length;j++){
-    if (text[j].slice(0,12) == 'Образование '){var start2 = j}
-    if (text[j].slice(0,16) == 'Ключевые навыки '){var end2 = j}
-  }
-  if (start2 && end2){
-    education = text.slice(start2 + 1, end2).join('\n');
-  }
-  else {education = ""}
-  
-  // comment
-  var comment
-  for (var j=i;j<text.length;j++){
-    if (text[j].slice(0,20) == 'Комментарии к резюме'){var start3 = j}
-    if (text[j].slice(0,28) == 'История общения с кандидатом'){var end3 = j}
-  }
-  if (start3 && end3){
-    comment = text.slice(start3 + 1, end3).join('\n');
-  }
-  else {comment = ""}
-  
-  // adding info to spreadsheet
-  var sheet = SpreadsheetApp.getActiveSheet();
-  sheet.appendRow([name,'',link,jobName,birth,mail,phone,comment,trips,drivingLicense,education,experience,income]);
+  return [name,city,link,jobName,birth,mail,phone,comment,trips,drivingLicense,education,experience,income];
 }
