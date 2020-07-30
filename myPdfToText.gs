@@ -96,7 +96,10 @@ function parseCV(text, file){
   else {city = ''}
   
   var trips = text[i].toLowerCase().indexOf('готов');
-  if (text[i].slice(trips-3,trips-1) == 'Не') {trips = text[i].slice(trips-3)}
+  var gender;
+  if (text[i].charAt(trips+5)=='а'){gender='Ж'}
+  else{gender='М'}
+  if (text[i].slice(trips-3,trips-1) == 'Не'){trips = text[i].slice(trips-3)}
   else {trips = text[i].slice(trips)}
   
   text = text.slice(i+1)
@@ -130,5 +133,5 @@ function parseCV(text, file){
   if(!drivingLicense){drivingLicense=''}
   if(!income){income=''}
   
-  return [name,city,link,jobName,birth,mail,phone,comment,trips,drivingLicense,education,experience,income];
+  return [name,city,link,jobName,birth,mail,phone,comment,trips,drivingLicense,education,experience,income,'',gender];
 }
